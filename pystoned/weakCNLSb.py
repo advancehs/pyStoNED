@@ -6,14 +6,16 @@ import pandas as pd
 
 from .constant import CET_ADDI, CET_MULT, FUN_PROD, FUN_COST, OPT_DEFAULT, RTS_CRS, RTS_VRS, OPT_LOCAL
 from .utils import tools
+from . import weakCNLS
 
 
-class weakCNLS:
-    """Convex Nonparametric Least Square with weak disposability (weakCNLS)
+class weakCNLSb(weakCNLS.weakCNLS):
+    """Convex Nonparametric Least Square with weak disposability (weakCNLSb)
+        lnb=ln(\gamma y -\beta x -\alpha - \epsilon(\epsilon<0))
     """
 
     def __init__(self, y, x, b, z=None, cet=CET_ADDI, fun=FUN_PROD, rts=RTS_VRS):
-        """weakCNLS model
+        """weakCNLSb model
 
         Args:
             y (float): output variable. 
@@ -42,9 +44,9 @@ class weakCNLS:
             self.__model__.lamda = Var(self.__model__.K, doc='z coefficient')
 
         # Initialize the sets
-        self.__model__.I = Set(initialize=range(len(self.y)))
-        self.__model__.J = Set(initialize=range(len(self.x[0])))
-        self.__model__.L = Set(initialize=range(len(self.b[0])))
+        self.__model__.I = Set(initialize=range(len(self.y[0]))) #i个y
+        self.__model__.J = Set(initialize=range(len(self.x[0]))) #j个x
+        self.__model__.L = Set(initialize=range(len(self.b))) ## l行
 
         # Initialize the variables
         self.__model__.alpha = Var(self.__model__.I, doc='alpha')
