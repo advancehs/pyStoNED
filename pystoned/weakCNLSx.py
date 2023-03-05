@@ -147,23 +147,23 @@ class weakCNLSx(weakCNLS.weakCNLS):
             if self.rts == RTS_VRS:
 
                 def log_rule(model, i):
-                    return model.frontier[i] == model.alpha[i] + sum(
-                        model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) - 1
+                    return model.frontier[i] == - model.alpha[i] + sum(
+                        model.gamma[i, j] * self.y[i][j] for j in model.J) \
+                            - sum(model.delta[i, l] * self.b[i][l] for l in model.L) - 1
 
                 return log_rule
             elif self.rts == RTS_CRS:
 
                 def log_rule(model, i):
                     return model.frontier[i] == sum(
-                        model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) - 1
+                        model.gamma[i, j] * self.y[i][j] for j in model.J) \
+                            - sum(model.delta[i, l] * self.b[i][l] for l in model.L) - 1
 
                 return log_rule
 
         raise ValueError("Undefined model parameters.")
 
-    def __afriat_rule(self):
+    def __afriat_rule(self):  ### todo 改变 afriat rule
         """Return the proper afriat inequality constraint"""
         if self.fun == FUN_PROD:
             __operator = NumericValue.__le__
@@ -232,71 +232,31 @@ class weakCNLSx(weakCNLS.weakCNLS):
         
         return disposability_rule
         
-    def display_status(self):
-        """Display the status of problem"""
-        tools.assert_optimized(self.optimization_status)
-        print(self.display_status)
 
-    def display_alpha(self):
-        """Display alpha value"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_various_return_to_scale(self.rts)
-        self.__model__.alpha.display()
 
-    def display_beta(self):
+    def display_gamma(self):
         """Display beta value"""
         tools.assert_optimized(self.optimization_status)
-        self.__model__.beta.display()
+        tools.assert_desirable_output(self.b)
+        self.__model__.gamma.display()
 
-    def display_lamda(self):
-        """Display lamda value"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_contextual_variable(self.z)
-        self.__model__.lamda.display()
 
-    def display_residual(self):
-        """Dispaly residual value"""
-        tools.assert_optimized(self.optimization_status)
-        self.__model__.epsilon.display()
 
-    def display_delta(self):
-        """Display delta value"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_undesirable_output(self.b)
-        self.__model__.delta.display()
 
-    def get_status(self):
-        """Return status"""
-        return self.optimization_status
 
-    def get_alpha(self):
-        """Return alpha value by array"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_various_return_to_scale(self.rts)
-        alpha = list(self.__model__.alpha[:].value)
-        return np.asarray(alpha)
 
-    def get_beta(self):
+    def get_gamma(self):
         """Return beta value by array"""
         tools.assert_optimized(self.optimization_status)
-        beta = np.asarray([i + tuple([j]) for i, j in zip(list(self.__model__.beta),
-                                                          list(self.__model__.beta[:, :].value))])
-        beta = pd.DataFrame(beta, columns=['Name', 'Key', 'Value'])
-        beta = beta.pivot(index='Name', columns='Key', values='Value')
-        return beta.to_numpy()
+        gamma = np.asarray([i + tuple([j]) for i, j in zip(list(self.__model__.gamma),
+                                                          list(self.__model__.gamma[:, :].value))])
+        gamma = pd.DataFrame(gamma, columns=['Name', 'Key', 'Value'])
+        gamma = gamma.pivot(index='Name', columns='Key', values='Value')
+        return gamma.to_numpy()
 
-    def get_residual(self):
-        """Return residual value by array"""
-        tools.assert_optimized(self.optimization_status)
-        residual = list(self.__model__.epsilon[:].value)
-        return np.asarray(residual)
 
-    def get_lamda(self):
-        """Return beta value by array"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_contextual_variable(self.z)
-        lamda = list(self.__model__.lamda[:].value)
-        return np.asarray(lamda)
+
+
 
     def get_frontier(self):
         """Return estimated frontier value by array"""
@@ -310,12 +270,3 @@ class weakCNLSx(weakCNLS.weakCNLS):
             frontier = np.asarray(self.y) - self.get_residual()
         return np.asarray(frontier)
 
-    def get_delta(self):
-        """Return delta value by array"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_undesirable_output(self.b)
-        delta = np.asarray([i + tuple([j]) for i, j in zip(list(self.__model__.delta),
-                                                           list(self.__model__.delta[:, :].value))])
-        delta = pd.DataFrame(delta, columns=['Name', 'Key', 'Value'])
-        delta = delta.pivot(index='Name', columns='Key', values='Value')
-        return delta.to_numpy()

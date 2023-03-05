@@ -207,6 +207,10 @@ def assert_contextual_variable(z):
         raise Exception(
             "Estimated coefficient (lambda) cannot be retrieved due to no contextual variable (z variable) included in the model.")
 
+def assert_desirable_output(y):
+    if type(y) == type(None):
+        raise Exception(
+            "Estimated coefficient (gamma) cannot be retrieved due to no desirable output (y variable) included in the model.")
 
 def assert_undesirable_output(b):
     if type(b) == type(None):
