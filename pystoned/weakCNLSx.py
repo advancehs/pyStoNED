@@ -129,13 +129,13 @@ class weakCNLSx(weakCNLS.weakCNLS):
         elif self.cet == CET_MULT:
             if type(self.z) != type(None):
                 def regression_rule(model, i):
-                    return log(self.x[i]) == log(model.frontier[i] + 1) \
+                    return log(self.x[i]) == - log(model.frontier[i] + 1) \
                             - sum(model.lamda[k] * self.z[i][k] for k in model.K) - model.epsilon[i]
 
                 return regression_rule
 
             def regression_rule(model, i):
-                return log(self.x[i]) == log(model.frontier[i] + 1) - model.epsilon[i]
+                return log(self.x[i]) == - log(model.frontier[i] + 1) - model.epsilon[i]
 
             return regression_rule
 
@@ -147,17 +147,17 @@ class weakCNLSx(weakCNLS.weakCNLS):
             if self.rts == RTS_VRS:
 
                 def log_rule(model, i):
-                    return model.frontier[i] == - model.alpha[i] + sum(
+                    return model.frontier[i] == model.alpha[i] - sum(
                         model.gamma[i, j] * self.y[i][j] for j in model.J) \
-                            - sum(model.delta[i, l] * self.b[i][l] for l in model.L) - 1
+                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) - 1
 
                 return log_rule
             elif self.rts == RTS_CRS:
 
                 def log_rule(model, i):
-                    return model.frontier[i] == sum(
+                    return model.frontier[i] == - sum(
                         model.gamma[i, j] * self.y[i][j] for j in model.J) \
-                            - sum(model.delta[i, l] * self.b[i][l] for l in model.L) - 1
+                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) - 1
 
                 return log_rule
 
@@ -170,56 +170,32 @@ class weakCNLSx(weakCNLS.weakCNLS):
         elif self.fun == FUN_COST:
             __operator = NumericValue.__ge__
 
-        if self.cet == CET_ADDI:
-            if self.rts == RTS_VRS:
 
-                def afriat_rule(model, i, h):
-                    if i == h:
-                        return Constraint.Skip
-                    return __operator(
-                        model.alpha[i] + sum(model.beta[i, j] * self.x[i][j] for j in model.J)
-                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
-                        model.alpha[h] + sum(model.beta[h, j] * self.x[i][j] for j in model.J)
-                            + sum(model.delta[h, l] * self.b[i][l] for l in model.L) )
+        if self.rts == RTS_VRS:
 
-                return afriat_rule
-            elif self.rts == RTS_CRS:
+            def afriat_rule(model, i, h):
+                if i == h:
+                    return Constraint.Skip
+                return __operator(
+                    model.alpha[i] - sum(model.gamma[i, j] * self.y[i][j] for j in model.J)
+                        + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
+                    model.alpha[h] - sum(model.gamma[h, j] * self.y[i][j] for j in model.J)
+                        + sum(model.delta[h, l] * self.b[i][l] for l in model.L) )
 
-                def afriat_rule(model, i, h):
-                    if i == h:
-                        return Constraint.Skip
-                    return __operator(
-                        sum(model.beta[i, j] * self.x[i][j] for j in model.J) 
-                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
-                        sum(model.beta[h, j] * self.x[i][j] for j in model.J)
-                            + sum(model.delta[h, l] * self.b[i][l] for l in model.L))
+            return afriat_rule
+        elif self.rts == RTS_CRS:
 
-                return afriat_rule
-        elif self.cet == CET_MULT:
-            if self.rts == RTS_VRS:
+            def afriat_rule(model, i, h):
+                if i == h:
+                    return Constraint.Skip
+                return __operator(
+                    - sum(model.gamma[i, j] * self.y[i][j] for j in model.J)
+                        + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
+                    - sum(model.gamma[h, j] * self.y[i][j] for j in model.J)
+                        + sum(model.delta[h, l] * self.b[i][l] for l in model.L))
 
-                def afriat_rule(model, i, h):
-                    if i == h:
-                        return Constraint.Skip
-                    return __operator(
-                        model.alpha[i] + sum(model.beta[i, j] * self.x[i][j] for j in model.J)
-                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
-                        model.alpha[h] + sum(model.beta[h, j] * self.x[i][j] for j in model.J)
-                            + sum(model.delta[h, l] * self.b[i][l] for l in model.L) )
+            return afriat_rule
 
-                return afriat_rule
-            elif self.rts == RTS_CRS:
-
-                def afriat_rule(model, i, h):
-                    if i == h:
-                        return Constraint.Skip
-                    return __operator(
-                        sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
-                        sum(model.beta[h, j] * self.x[i][j] for j in model.J) \
-                            + sum(model.delta[h, l] * self.b[i][l] for l in model.L))
-
-                return afriat_rule
 
         raise ValueError("Undefined model parameters.")
 
@@ -228,7 +204,7 @@ class weakCNLSx(weakCNLS.weakCNLS):
         def disposability_rule(model, i, h):
             if i == h:
                 return Constraint.Skip
-            return model.alpha[i] + sum(model.beta[i, j] * self.x[h][j] for j in model.J) >= 0
+            return model.alpha[i] + sum( self.x[h][j] for j in model.J) >= 0
         
         return disposability_rule
         
@@ -237,7 +213,7 @@ class weakCNLSx(weakCNLS.weakCNLS):
     def display_gamma(self):
         """Display beta value"""
         tools.assert_optimized(self.optimization_status)
-        tools.assert_desirable_output(self.b)
+        tools.assert_desirable_output(self.y)
         self.__model__.gamma.display()
 
 
@@ -264,8 +240,8 @@ class weakCNLSx(weakCNLS.weakCNLS):
         if self.cet == CET_MULT and type(self.z) == type(None):
             frontier = np.asarray(list(self.__model__.frontier[:].value)) + 1
         elif self.cet == CET_MULT and type(self.z) != type(None):
-            frontier = list(np.divide(self.y, np.exp(
-                self.get_residual() + self.get_lamda() * np.asarray(self.z)[:, 0])) - 1)
+            frontier = list(np.divide(1, np.exp(
+                self.get_residual() + self.get_lamda() * np.asarray(self.z)[:, 0] ) * self.x ) - 1)
         elif self.cet == CET_ADDI:
             frontier = np.asarray(self.y) - self.get_residual()
         return np.asarray(frontier)

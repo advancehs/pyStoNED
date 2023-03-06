@@ -132,14 +132,14 @@ class weakCNLSb(weakCNLS.weakCNLS):
         elif self.cet == CET_MULT:
             if type(self.z) != type(None):
                 def regression_rule(model, i):
-                    return log(self.b[i]) == log(model.frontier[i] + 1) \
+                    return log(self.b[i]) == - log(model.frontier[i] + 1) \
                             - sum(model.lamda[k] * self.z[i][k] for k in model.K) \
                             - model.epsilon[i]
 
                 return regression_rule
 
             def regression_rule(model, i):
-                return log(self.b[i]) == log(model.frontier[i] + 1) \
+                return log(self.b[i]) == - log(model.frontier[i] + 1) \
                         - model.epsilon[i]
 
             return regression_rule
@@ -152,17 +152,17 @@ class weakCNLSb(weakCNLS.weakCNLS):
             if self.rts == RTS_VRS:
 
                 def log_rule(model, i):
-                    return model.frontier[i] == - model.alpha[i] - sum(
+                    return model.frontier[i] == model.alpha[i] + sum(
                         model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            + sum(model.gamma[i, l] * self.y[i][l] for l in model.L) - 1
+                            - sum(model.gamma[i, l] * self.y[i][l] for l in model.L) - 1
 
                 return log_rule
             elif self.rts == RTS_CRS:
 
                 def log_rule(model, i):
-                    return model.frontier[i] == - sum(
+                    return model.frontier[i] == + sum(
                         model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            + sum(model.gamma[i, l] * self.y[i][l] for l in model.L) - 1
+                            - sum(model.gamma[i, l] * self.y[i][l] for l in model.L) - 1
 
                 return log_rule
 
@@ -182,9 +182,9 @@ class weakCNLSb(weakCNLS.weakCNLS):
                     return Constraint.Skip
                 return __operator(
                     model.alpha[i] + sum(model.beta[i, j] * self.x[i][j] for j in model.J)
-                        + sum(model.gamma[i, l] * self.y[i][l] for l in model.L),
+                        - sum(model.gamma[i, l] * self.y[i][l] for l in model.L),
                     model.alpha[h] + sum(model.beta[h, j] * self.x[i][j] for j in model.J)
-                        + sum(model.gamma[h, l] * self.y[i][l] for l in model.L) )
+                        - sum(model.gamma[h, l] * self.y[i][l] for l in model.L) )
 
             return afriat_rule
         elif self.rts == RTS_CRS:
@@ -194,9 +194,9 @@ class weakCNLSb(weakCNLS.weakCNLS):
                     return Constraint.Skip
                 return __operator(
                     sum(model.beta[i, j] * self.x[i][j] for j in model.J)
-                        + sum(model.gamma[i, l] * self.y[i][l] for l in model.L),
+                        - sum(model.gamma[i, l] * self.y[i][l] for l in model.L),
                     sum(model.beta[h, j] * self.x[i][j] for j in model.J)
-                        + sum(model.gamma[h, l] * self.y[i][l] for l in model.L))
+                        - sum(model.gamma[h, l] * self.y[i][l] for l in model.L))
 
             return afriat_rule
 
@@ -229,16 +229,16 @@ class weakCNLSb(weakCNLS.weakCNLS):
 
 
 
-    def get_frontier(self): ### todo
+    def get_frontier(self):
         """Return estimated frontier value by array"""
         tools.assert_optimized(self.optimization_status)
         if self.cet == CET_MULT and type(self.z) == type(None):
             frontier = np.asarray(list(self.__model__.frontier[:].value)) + 1
         elif self.cet == CET_MULT and type(self.z) != type(None):
-            frontier = list(np.divide(self.y, np.exp(
-                self.get_residual() + self.get_lamda() * np.asarray(self.z)[:, 0])) - 1)
+            frontier = list(np.divide(1, np.exp(
+                self.get_residual() + self.get_lamda() * np.asarray(self.z)[:, 0])* self.b) - 1)
         elif self.cet == CET_ADDI:
-            frontier = np.asarray(self.y) - self.get_residual()
+            frontier = -np.asarray(self.b) - self.get_residual()
         return np.asarray(frontier)
 
     def get_gamma(self):
