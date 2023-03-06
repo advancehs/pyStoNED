@@ -58,10 +58,10 @@ class CQRG:
         while self.__convergence_test(self.alpha, self.beta) > 0.0001:
             if type(self.z) != type(None):
                 model2 = CQERZG2.CQRZG2(
-                    self.y, self.x, self.z, self.tau, self.active, self.cutactive, self.cet, self.fun, self.rts)
+                    self.y, self.x, self.z, self.tau, self.cutactive,self.active, self.cet, self.fun, self.rts)
             else:
                 model2 = CQERG2.CQRG2(
-                    self.y, self.x, self.tau, self.active, self.cutactive, self.cet, self.fun, self.rts)
+                    self.y, self.x, self.tau, self.cutactive, self.active, self.cet, self.fun, self.rts)
             model2.optimize(email, solver)
             self.alpha = model2.get_alpha()
             self.beta = model2.get_beta()
@@ -291,10 +291,10 @@ class CERG:
         while self.__convergence_test(self.alpha, self.beta) > 0.0001:
             if type(self.z) != type(None):
                 model2 = CQERZG2.CERZG2(
-                    self.y, self.x, self.z, self.tau, self.active, self.cutactive, self.cet, self.fun, self.rts)
+                    self.y, self.x, self.z, self.tau, self.cutactive, self.active, self.cet, self.fun, self.rts)
             else:
                 model2 = CQERG2.CERG2(
-                    self.y, self.x, self.tau, self.active, self.cutactive, self.cet, self.fun, self.rts)
+                    self.y, self.x, self.tau, self.cutactive, self.active, self.cet, self.fun, self.rts)
             model2.optimize(email, solver)
             self.alpha = model2.get_alpha()
             self.beta = model2.get_beta()

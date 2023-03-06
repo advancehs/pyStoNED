@@ -3,48 +3,46 @@ from pyomo.environ import ConcreteModel, Set, Var, Objective, minimize, Constrai
 from pyomo.core.expr.numvalue import NumericValue
 import numpy as np
 import pandas as pd
+from ..constant import CET_ADDI, CET_MULT, FUN_PROD, FUN_COST, RTS_CRS, RTS_VRS, OPT_DEFAULT, OPT_LOCAL
+from .tools import optimize_model
 
-from .constant import CET_ADDI, CET_MULT, FUN_PROD, FUN_COST, OPT_DEFAULT, RTS_CRS, RTS_VRS, OPT_LOCAL
-from .utils import tools
 
-
-class weakCNLS:
-    """Convex Nonparametric Least Square with weak disposability (weakCNLS)
+class weakCNLSZG1:
+    """initial Group-VC-added weakCNLSZ (weakCNLSZ+G) model
     """
 
-    def __init__(self, y, x, b, z=None, cet=CET_ADDI, fun=FUN_PROD, rts=RTS_VRS):
-        """weakCNLS model
+    def __init__(self, y, x, b, z, cutactive, cet=CET_ADDI, fun=FUN_PROD, rts=RTS_VRS):
+        """CNLSZ+G model
 
         Args:
-            y (float): output variable. 
+            y (float): output variable.
             x (float): input variables.
             b (float): undersiable variables.
             z (float, optional): Contextual variable(s). Defaults to None.
+            cutactive (float): active concavity constraint.
             cet (String, optional): CET_ADDI (additive composite error term) or CET_MULT (multiplicative composite error term). Defaults to CET_ADDI.
             fun (String, optional): FUN_PROD (production frontier) or FUN_COST (cost frontier). Defaults to FUN_PROD.
             rts (String, optional): RTS_VRS (variable returns to scale) or RTS_CRS (constant returns to scale). Defaults to RTS_VRS.
         """
         # TODO(error/warning handling): Check the configuration of the model exist
-        self.y, self.x, self.b, self.z = tools.assert_valid_wp_data(y, x, b, z)
-
+        self.x = x
+        self.y = y
+        self.b = b
+        self.z = z
         self.cet = cet
         self.fun = fun
         self.rts = rts
 
+        self.cutactive = cutactive
+
         # Initialize the CNLS model
         self.__model__ = ConcreteModel()
-
-        if type(self.z) != type(None):
-            # Initialize the set of z
-            self.__model__.K = Set(initialize=range(len(self.z[0])))
-
-            # Initialize the variables for z variable
-            self.__model__.lamda = Var(self.__model__.K, doc='z coefficient')
 
         # Initialize the sets
         self.__model__.I = Set(initialize=range(len(self.y)))
         self.__model__.J = Set(initialize=range(len(self.x[0])))
         self.__model__.L = Set(initialize=range(len(self.b[0])))
+        self.__model__.K = Set(initialize=range(len(self.z[0])))
 
         # Initialize the variables
         self.__model__.alpha = Var(self.__model__.I, doc='alpha')
@@ -52,10 +50,11 @@ class weakCNLS:
                                   self.__model__.J,
                                   bounds=(0.0, None),
                                   doc='beta')
-        self.__model__.delta = Var(self.__model__.I, 
-                                   self.__model__.L, 
-                                   bounds=(0.0, None), 
+        self.__model__.delta = Var(self.__model__.I,
+                                   self.__model__.L,
+                                   bounds=(0.0, None),
                                    doc='delta')
+        self.__model__.lamda = Var(self.__model__.K, doc='Zvalue')
         self.__model__.epsilon = Var(self.__model__.I, doc='residual')
         self.__model__.frontier = Var(self.__model__.I,
                                       bounds=(0.0, None),
@@ -73,13 +72,16 @@ class weakCNLS:
                                                  rule=self.__log_rule(),
                                                  doc='log-transformed regression equation')
         self.__model__.afriat_rule = Constraint(self.__model__.I,
-                                                self.__model__.I,
                                                 rule=self.__afriat_rule(),
-                                                doc='afriat inequality')
+                                                doc='elementary Afriat approach')
         self.__model__.disposability_rule = Constraint(self.__model__.I,
                                                         self.__model__.I,
                                                         rule=self.__disposability_rule(),
                                                         doc='weak disposibility')
+        self.__model__.sweet_rule = Constraint(self.__model__.I,
+                                               self.__model__.I,
+                                               rule=self.__sweet_rule(),
+                                               doc='sweet spot approach')
 
         # Optimize model
         self.optimization_status = 0
@@ -93,7 +95,7 @@ class weakCNLS:
             solver (string): The solver chosen for optimization. It will optimize with default solver if OPT_DEFAULT is given.
         """
         # TODO(error/warning handling): Check problem status after optimization
-        self.problem_status, self.optimization_status = tools.optimize_model(
+        self.problem_status, self.optimization_status = optimize_model(
             self.__model__, email, self.cet, solver)
 
     def __objective_rule(self):
@@ -108,49 +110,29 @@ class weakCNLS:
         """Return the proper regression constraint"""
         if self.cet == CET_ADDI:
             if self.rts == RTS_VRS:
-                if type(self.z) != type(None):
-                    def regression_rule(model, i):
-                        return self.y[i] == model.alpha[i] \
-                                + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                                + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
-                                + sum(model.lamda[k] * self.z[i][k] for k in model.K) \
-                                + model.epsilon[i]
-
-                    return regression_rule
 
                 def regression_rule(model, i):
                     return self.y[i] == model.alpha[i] \
-                            + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
-                            + model.epsilon[i]
+                        + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                        + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
+                        + sum(model.lamda[k] * self.z[i][k] for k in model.K) \
+                        + model.epsilon[i]
 
                 return regression_rule
             elif self.rts == RTS_CRS:
-                if type(self.z) != type(None):
-                    def regression_rule(model, i):
-                        return self.y[i] == sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                                + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
-                                + sum(model.lamda[k] * self.z[i][k] for k in model.K) + model.epsilon[i]
-
-                    return regression_rule
 
                 def regression_rule(model, i):
                     return self.y[i] == sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
-                            + model.epsilon[i]
+                        + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
+                        + sum(model.lamda[k] * self.z[i][k] for k in model.K) \
+                        + model.epsilon[i]
 
                 return regression_rule
 
         elif self.cet == CET_MULT:
-            if type(self.z) != type(None):
-                def regression_rule(model, i):
-                    return log(self.y[i]) == log(model.frontier[i] + 1) \
-                            + sum(model.lamda[k] * self.z[i][k] for k in model.K) + model.epsilon[i]
-
-                return regression_rule
 
             def regression_rule(model, i):
-                return log(self.y[i]) == log(model.frontier[i] + 1) + model.epsilon[i]
+                return log(self.y[i]) == log(model.frontier[i] + 1) + sum(model.lamda[k] * self.z[i][k] for k in model.K) + model.epsilon[i]
 
             return regression_rule
 
@@ -179,142 +161,111 @@ class weakCNLS:
         raise ValueError("Undefined model parameters.")
 
     def __afriat_rule(self):
-        """Return the proper afriat inequality constraint"""
+        """Return the proper elementary Afriat approach constraint"""
         if self.fun == FUN_PROD:
             __operator = NumericValue.__le__
         elif self.fun == FUN_COST:
             __operator = NumericValue.__ge__
 
-
         if self.rts == RTS_VRS:
 
-            def afriat_rule(model, i, h):
-                if i == h:
-                    return Constraint.Skip
+            def afriat_rule(model, i):
                 return __operator(
-                    model.alpha[i] + sum(model.beta[i, j] * self.x[i][j] for j in model.J)
-                        + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
-                    model.alpha[h] + sum(model.beta[h, j] * self.x[i][j] for j in model.J)
-                        + sum(model.delta[h, l] * self.b[i][l] for l in model.L) )
+                    model.alpha[i] + sum(model.beta[i, j] * self.x[i][j]for j in model.J) \
+                                   + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
+                    model.alpha[self.__model__.I.nextw(i)] \
+                           + sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j]for j in model.J) \
+                        + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L))
 
             return afriat_rule
+
         elif self.rts == RTS_CRS:
-
-            def afriat_rule(model, i, h):
-                if i == h:
-                    return Constraint.Skip
+            def afriat_rule(model, i):
                 return __operator(
-                    sum(model.beta[i, j] * self.x[i][j] for j in model.J)
-                        + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
-                    sum(model.beta[h, j] * self.x[i][j] for j in model.J)
-                        + sum(model.delta[h, l] * self.b[i][l] for l in model.L))
+                    sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                           + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
+                    sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j] for j in model.J) \
+                            + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L))
 
             return afriat_rule
-
         raise ValueError("Undefined model parameters.")
 
     def __disposability_rule(self):
         """Return the proper weak disposability constraint"""
         if self.rts == RTS_VRS:
-
             def disposability_rule(model, i, h):
-                if i == h:
-                    return Constraint.Skip
-                return model.alpha[i] + sum(model.beta[i, j] * self.x[h][j] for j in model.J) >= 0
-
+                return model.alpha[self.__model__.I.nextw(i)] \
+                    + sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j] for j in model.J) \
+                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L) >= 0
             return disposability_rule
+
         elif self.rts == RTS_CRS:
-
-            def disposability_rule(model, i, h):
-                if i == h:
-                    return Constraint.Skip
-                return sum(model.beta[i, j] * self.x[h][j] for j in model.J) >= 0
-
+            def disposability_rule(model, i):
+                return sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j] for j in model.J) \
+                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L) >= 0
             return disposability_rule
         raise ValueError("Undefined model parameters.")
 
-    def display_status(self):
-        """Display the status of problem"""
-        tools.assert_optimized(self.optimization_status)
-        print(self.display_status)
 
-    def display_alpha(self):
-        """Display alpha value"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_various_return_to_scale(self.rts)
-        self.__model__.alpha.display()
+    def __sweet_rule(self, ):
+        """Return the proper sweet spot approach constraint"""
+        if self.fun == FUN_PROD:
+            __operator = NumericValue.__le__
+        elif self.fun == FUN_COST:
+            __operator = NumericValue.__ge__
 
-    def display_beta(self):
-        """Display beta value"""
-        tools.assert_optimized(self.optimization_status)
-        self.__model__.beta.display()
+        if self.rts == RTS_VRS:
 
-    def display_lamda(self):
-        """Display lamda value"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_contextual_variable(self.z)
-        self.__model__.lamda.display()
+            def sweet_rule(model, i, h):
+                if self.cutactive[i][h]:
+                    if i == h:
+                        return Constraint.Skip
+                    return __operator(model.alpha[i] \
+                                      + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                                      + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
+                                      model.alpha[h] \
+                                      + sum(model.beta[h, j] * self.x[i][j] for j in model.J) \
+                                      + sum(model.delta[h, l] * self.b[i][l] for l in model.L) )
+                return Constraint.Skip
 
-    def display_residual(self):
-        """Dispaly residual value"""
-        tools.assert_optimized(self.optimization_status)
-        self.__model__.epsilon.display()
+            return sweet_rule
+        elif self.rts == RTS_CRS:
 
-    def display_delta(self):
-        """Display delta value"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_undesirable_output(self.b)
-        self.__model__.delta.display()
+            def sweet_rule(model, i, h):
+                if self.cutactive[i][h]:
+                    if i == h:
+                        return Constraint.Skip
+                    return __operator(sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                                      + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
+                                      sum(model.beta[h, j] * self.x[i][j] for j in model.J) \
+                                      + sum(model.delta[h, l] * self.b[i][l] for l in model.L))
+                return Constraint.Skip
 
-    def get_status(self):
-        """Return status"""
-        return self.optimization_status
+            return sweet_rule
+
+        raise ValueError("Undefined model parameters.")
 
     def get_alpha(self):
         """Return alpha value by array"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_various_return_to_scale(self.rts)
+        if self.optimization_status == 0:
+            self.optimize()
         alpha = list(self.__model__.alpha[:].value)
         return np.asarray(alpha)
 
     def get_beta(self):
         """Return beta value by array"""
-        tools.assert_optimized(self.optimization_status)
+        if self.optimization_status == 0:
+            self.optimize()
         beta = np.asarray([i + tuple([j]) for i, j in zip(list(self.__model__.beta),
                                                           list(self.__model__.beta[:, :].value))])
         beta = pd.DataFrame(beta, columns=['Name', 'Key', 'Value'])
         beta = beta.pivot(index='Name', columns='Key', values='Value')
         return beta.to_numpy()
 
-    def get_residual(self):
-        """Return residual value by array"""
-        tools.assert_optimized(self.optimization_status)
-        residual = list(self.__model__.epsilon[:].value)
-        return np.asarray(residual)
-
-    def get_lamda(self):
-        """Return beta value by array"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_contextual_variable(self.z)
-        lamda = list(self.__model__.lamda[:].value)
-        return np.asarray(lamda)
-
-    def get_frontier(self):
-        """Return estimated frontier value by array"""
-        tools.assert_optimized(self.optimization_status)
-        if self.cet == CET_MULT and type(self.z) == type(None):
-            frontier = np.asarray(list(self.__model__.frontier[:].value)) + 1
-        elif self.cet == CET_MULT and type(self.z) != type(None):
-            frontier = list(np.divide(self.y, np.exp(
-                self.get_residual() + self.get_lamda() * np.asarray(self.z)[:, 0])) - 1)
-        elif self.cet == CET_ADDI:
-            frontier = np.asarray(self.y) - self.get_residual()
-        return np.asarray(frontier)
-
     def get_delta(self):
         """Return delta value by array"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_undesirable_output(self.b)
+        if self.optimization_status == 0:
+            self.optimize()
         delta = np.asarray([i + tuple([j]) for i, j in zip(list(self.__model__.delta),
                                                            list(self.__model__.delta[:, :].value))])
         delta = pd.DataFrame(delta, columns=['Name', 'Key', 'Value'])

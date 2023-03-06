@@ -56,16 +56,16 @@ class CNLSG:
         while self.__convergence_test(self.alpha, self.beta) > 0.0001:
             if type(self.z) != type(None):
                 model2 = CNLSZG2.CNLSZG2(
-                    self.y, self.x, self.z, self.active, self.cutactive, self.cet, self.fun, self.rts)
+                    self.y, self.x, self.z, self.cutactive, self.active, self.cet, self.fun, self.rts)
             else:
                 model2 = CNLSG2.CNLSG2(
-                    self.y, self.x, self.active, self.cutactive, self.cet, self.fun, self.rts)
+                    self.y, self.x, self.cutactive, self.active, self.cet, self.fun, self.rts)
             model2.optimize(email, solver)
             self.alpha = model2.get_alpha()
             self.beta = model2.get_beta()
             # TODO: Replace print with log system
-            print("Genetic Algorithm Convergence : %8f" %
-                  (self.__convergence_test(self.alpha, self.beta)))
+            # print("Genetic Algorithm Convergence : %8f" %
+            #       (self.__convergence_test(self.alpha, self.beta)))
             self.__model__ = model2.__model__
             self.count += 1
         self.optimization_status = 1
@@ -74,50 +74,83 @@ class CNLSG:
     def __convergence_test(self, alpha, beta):
         x = np.asarray(self.x)
         activetmp1 = 0.0
-
+        if self.rts == RTS_VRS and self.fun == FUN_PROD:
         # go into the loop
-        for i in range(len(x)):
-            activetmp = 0.0
-            # go into the sub-loop and find the violated concavity constraints
-            for j in range(len(x)):
-                if self.cet == CET_ADDI:
-                    if self.rts == RTS_VRS:
-                        if self.fun == FUN_PROD:
-                            self.active2[i, j] = alpha[i] + np.sum(beta[i, :] * x[i, :]) - \
-                                alpha[j] - np.sum(beta[j, :] * x[i, :])
-                        elif self.fun == FUN_COST:
-                            self.active2[i, j] = - alpha[i] - np.sum(beta[i, :] * x[i, :]) + \
-                                alpha[j] + np.sum(beta[j, :] * x[i, :])
-                    if self.rts == RTS_CRS:
-                        if self.fun == FUN_PROD:
-                            self.active2[i, j] = np.sum(beta[i, :] * x[i, :]) \
-                                - np.sum(beta[j, :] * x[i, :])
-                        elif self.fun == FUN_COST:
-                            self.active2[i, j] = - np.sum(beta[i, :] * x[i, :]) \
-                                + np.sum(beta[j, :] * x[i, :])
-                if self.cet == CET_MULT:
-                    if self.rts == RTS_VRS:
-                        if self.fun == FUN_PROD:
-                            self.active2[i, j] = alpha[i] + np.sum(beta[i, :] * x[i, :]) - \
-                                alpha[j] - np.sum(beta[j, :] * x[i, :])
-                        elif self.fun == FUN_COST:
-                            self.active2[i, j] = - alpha[i] - np.sum(beta[i, :] * x[i, :]) + \
-                                alpha[j] + np.sum(beta[j, :] * x[i, :])
-                    if self.rts == RTS_CRS:
-                        if self.fun == FUN_PROD:
-                            self.active2[i, j] = np.sum(beta[i, :] * x[i, :]) - \
-                                np.sum(beta[j, :] * x[i, :])
-                        elif self.fun == FUN_COST:
-                            self.active2[i, j] = - np.sum(beta[i, :] * x[i, :]) + \
-                                np.sum(beta[j, :] * x[i, :])
-                if self.active2[i, j] > activetmp:
-                    activetmp = self.active2[i, j]
+            for i in range(len(x)):
+                activetmp = 0.0
+                # go into the sub-loop and find the violated concavity constraints
+                for j in range(len(x)):
+                    self.active2[i, j] = alpha[i] + np.sum(beta[i, :] * x[i, :]) - \
+                        alpha[j] - np.sum(beta[j, :] * x[i, :])
+
+                    if self.active2[i, j] > activetmp:
+                        activetmp = self.active2[i, j]
+
+
             # find the maximal violated constraint in sub-loop and added into the active matrix
-            for j in range(len(x)):
-                if self.active2[i, j] >= activetmp and activetmp > 0:
-                    self.active[i, j] = 1
-            if activetmp > activetmp1:
-                activetmp1 = activetmp
+                for j in range(len(x)):
+                    if self.active2[i, j] >= activetmp and activetmp > 0:
+                        self.active[i, j] = 1
+                if activetmp > activetmp1:
+                    activetmp1 = activetmp
+
+        elif self.rts == RTS_VRS and self.fun == FUN_COST:
+        # go into the loop
+            for i in range(len(x)):
+                activetmp = 0.0
+                # go into the sub-loop and find the violated concavity constraints
+                for j in range(len(x)):
+                    self.active2[i, j] = - alpha[i] - np.sum(beta[i, :] * x[i, :]) + \
+                        alpha[j] + np.sum(beta[j, :] * x[i, :])
+
+                    if self.active2[i, j] > activetmp:
+                        activetmp = self.active2[i, j]
+
+
+            # find the maximal violated constraint in sub-loop and added into the active matrix
+                for j in range(len(x)):
+                    if self.active2[i, j] >= activetmp and activetmp > 0:
+                        self.active[i, j] = 1
+                if activetmp > activetmp1:
+                    activetmp1 = activetmp
+
+        elif self.rts == RTS_CRS and self.fun == FUN_PROD:
+        # go into the loop
+            for i in range(len(x)):
+                activetmp = 0.0
+                # go into the sub-loop and find the violated concavity constraints
+                for j in range(len(x)):
+                    self.active2[i, j] = np.sum(beta[i, :] * x[i, :]) \
+                            - np.sum(beta[j, :] * x[i, :])
+
+                    if self.active2[i, j] > activetmp:
+                        activetmp = self.active2[i, j]
+
+
+            # find the maximal violated constraint in sub-loop and added into the active matrix
+                for j in range(len(x)):
+                    if self.active2[i, j] >= activetmp and activetmp > 0:
+                        self.active[i, j] = 1
+                if activetmp > activetmp1:
+                    activetmp1 = activetmp
+
+        elif self.rts == RTS_CRS and self.fun == FUN_COST:
+        # go into the loop
+            for i in range(len(x)):
+                activetmp = 0.0
+                # go into the sub-loop and find the violated concavity constraints
+                for j in range(len(x)):
+                    self.active2[i, j] = - np.sum(beta[i, :] * x[i, :]) \
+                            + np.sum(beta[j, :] * x[i, :])
+                    if self.active2[i, j] > activetmp:
+                        activetmp = self.active2[i, j]
+
+            # find the maximal violated constraint in sub-loop and added into the active matrix
+                for j in range(len(x)):
+                    if self.active2[i, j] >= activetmp and activetmp > 0:
+                        self.active[i, j] = 1
+                if activetmp > activetmp1:
+                    activetmp1 = activetmp
         return activetmp
 
     def display_status(self):

@@ -9,13 +9,13 @@ from .utils import tools
 from . import weakCNLS
 
 
-class weakCNLSb(weakCNLS.weakCNLS):
-    """Convex Nonparametric Least Square with weak disposability (weakCNLSb)
-        lnb=ln(\gamma y -\beta x -\alpha - \epsilon(\epsilon<0))
+class weakCNLSx(weakCNLS.weakCNLS):
+    """Convex Nonparametric Least Square with weak disposability (weakCNLSx)
     """
 
     def __init__(self, y, x, b, z=None, cet=CET_ADDI, fun=FUN_PROD, rts=RTS_VRS):
-        """weakCNLSb model
+        """weakCNLSx model
+        lnx=ln(\gamma y -\delta b -\alpha) - \epsilon(\epsilon<0)
 
         Args:
             y (float): output variable. 
@@ -44,20 +44,20 @@ class weakCNLSb(weakCNLS.weakCNLS):
             self.__model__.lamda = Var(self.__model__.K, doc='z coefficient')
 
         # Initialize the sets
-        self.__model__.I = Set(initialize=range(len(self.b))) #i行
-        self.__model__.J = Set(initialize=range(len(self.x[0]))) #j个x
-        self.__model__.L = Set(initialize=range(len(self.y[0]))) ## l个y
+        self.__model__.I = Set(initialize=range(len(self.x)))
+        self.__model__.J = Set(initialize=range(len(self.y[0])))
+        self.__model__.L = Set(initialize=range(len(self.b[0])))
 
         # Initialize the variables
         self.__model__.alpha = Var(self.__model__.I, doc='alpha')
-        self.__model__.beta = Var(self.__model__.I,
-                                  self.__model__.J,
-                                  bounds=(0.0, None),  ## i行 j列x
-                                  doc='beta')
         self.__model__.gamma = Var(self.__model__.I,
+                                  self.__model__.J,
+                                  bounds=(0.0, None),
+                                  doc='gamma')
+        self.__model__.delta = Var(self.__model__.I, 
                                    self.__model__.L, 
                                    bounds=(0.0, None), 
-                                   doc='gamma')
+                                   doc='delta')
         self.__model__.epsilon = Var(self.__model__.I, doc='residual')
         self.__model__.frontier = Var(self.__model__.I,
                                       bounds=(0.0, None),
@@ -89,42 +89,39 @@ class weakCNLSb(weakCNLS.weakCNLS):
 
 
 
-
-
     def __regression_rule(self):
         """Return the proper regression constraint"""
         if self.cet == CET_ADDI:
             if self.rts == RTS_VRS:
                 if type(self.z) != type(None):
                     def regression_rule(model, i):
-                        return self.b[i] == -model.alpha[i] \
-                                - sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                                + sum(model.gamma[i, l] * self.y[i][l] for l in model.L) \
+                        return self.x[i] == - model.alpha[i] \
+                                + sum(model.gamma[i, j] * self.y[i][j] for j in model.J) \
+                                - sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
                                 - sum(model.lamda[k] * self.z[i][k] for k in model.K) \
                                 - model.epsilon[i]
 
                     return regression_rule
 
                 def regression_rule(model, i):
-                    return self.b[i] == -model.alpha[i] \
-                            - sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            + sum(model.gamma[i, l] * self.y[i][l] for l in model.L) \
+                    return self.x[i] == - model.alpha[i] \
+                            + sum(model.gamma[i, j] * self.y[i][j] for j in model.J) \
+                            - sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
                             - model.epsilon[i]
 
                 return regression_rule
             elif self.rts == RTS_CRS:
                 if type(self.z) != type(None):
                     def regression_rule(model, i):
-                        return self.b[i] == -sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                                + sum(model.gamma[i, l] * self.y[i][l] for l in model.L) \
-                                - sum(model.lamda[k] * self.z[i][k] for k in model.K) \
-                                - model.epsilon[i]
+                        return self.x[i] == sum(model.gamma[i, j] * self.y[i][j] for j in model.J) \
+                                - sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
+                                - sum(model.lamda[k] * self.z[i][k] for k in model.K) - model.epsilon[i]
 
                     return regression_rule
 
                 def regression_rule(model, i):
-                    return self.b[i] == -sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            + sum(model.gamma[i, l] * self.y[i][l] for l in model.L) \
+                    return self.x[i] == sum(model.gamma[i, j] * self.y[i][j] for j in model.J) \
+                            - sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
                             - model.epsilon[i]
 
                 return regression_rule
@@ -132,15 +129,13 @@ class weakCNLSb(weakCNLS.weakCNLS):
         elif self.cet == CET_MULT:
             if type(self.z) != type(None):
                 def regression_rule(model, i):
-                    return log(self.b[i]) == - log(model.frontier[i] + 1) \
-                            - sum(model.lamda[k] * self.z[i][k] for k in model.K) \
-                            - model.epsilon[i]
+                    return log(self.x[i]) == - log(model.frontier[i] + 1) \
+                            - sum(model.lamda[k] * self.z[i][k] for k in model.K) - model.epsilon[i]
 
                 return regression_rule
 
             def regression_rule(model, i):
-                return log(self.b[i]) == - log(model.frontier[i] + 1) \
-                        - model.epsilon[i]
+                return log(self.x[i]) == - log(model.frontier[i] + 1) - model.epsilon[i]
 
             return regression_rule
 
@@ -152,28 +147,29 @@ class weakCNLSb(weakCNLS.weakCNLS):
             if self.rts == RTS_VRS:
 
                 def log_rule(model, i):
-                    return model.frontier[i] == model.alpha[i] + sum(
-                        model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            - sum(model.gamma[i, l] * self.y[i][l] for l in model.L) - 1
+                    return model.frontier[i] == model.alpha[i] - sum(
+                        model.gamma[i, j] * self.y[i][j] for j in model.J) \
+                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) - 1
 
                 return log_rule
             elif self.rts == RTS_CRS:
 
                 def log_rule(model, i):
-                    return model.frontier[i] == + sum(
-                        model.beta[i, j] * self.x[i][j] for j in model.J) \
-                            - sum(model.gamma[i, l] * self.y[i][l] for l in model.L) - 1
+                    return model.frontier[i] == - sum(
+                        model.gamma[i, j] * self.y[i][j] for j in model.J) \
+                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) - 1
 
                 return log_rule
 
         raise ValueError("Undefined model parameters.")
 
-    def __afriat_rule(self):
+    def __afriat_rule(self):  ### todo 改变 afriat rule
         """Return the proper afriat inequality constraint"""
         if self.fun == FUN_PROD:
             __operator = NumericValue.__le__
         elif self.fun == FUN_COST:
             __operator = NumericValue.__ge__
+
 
         if self.rts == RTS_VRS:
 
@@ -181,10 +177,10 @@ class weakCNLSb(weakCNLS.weakCNLS):
                 if i == h:
                     return Constraint.Skip
                 return __operator(
-                    model.alpha[i] + sum(model.beta[i, j] * self.x[i][j] for j in model.J)
-                        - sum(model.gamma[i, l] * self.y[i][l] for l in model.L),
-                    model.alpha[h] + sum(model.beta[h, j] * self.x[i][j] for j in model.J)
-                        - sum(model.gamma[h, l] * self.y[i][l] for l in model.L) )
+                    model.alpha[i] - sum(model.gamma[i, j] * self.y[i][j] for j in model.J)
+                        + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
+                    model.alpha[h] - sum(model.gamma[h, j] * self.y[i][j] for j in model.J)
+                        + sum(model.delta[h, l] * self.b[i][l] for l in model.L) )
 
             return afriat_rule
         elif self.rts == RTS_CRS:
@@ -193,10 +189,10 @@ class weakCNLSb(weakCNLS.weakCNLS):
                 if i == h:
                     return Constraint.Skip
                 return __operator(
-                    sum(model.beta[i, j] * self.x[i][j] for j in model.J)
-                        - sum(model.gamma[i, l] * self.y[i][l] for l in model.L),
-                    sum(model.beta[h, j] * self.x[i][j] for j in model.J)
-                        - sum(model.gamma[h, l] * self.y[i][l] for l in model.L))
+                    - sum(model.gamma[i, j] * self.y[i][j] for j in model.J)
+                        + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
+                    - sum(model.gamma[h, j] * self.y[i][j] for j in model.J)
+                        + sum(model.delta[h, l] * self.b[i][l] for l in model.L))
 
             return afriat_rule
 
@@ -205,33 +201,34 @@ class weakCNLSb(weakCNLS.weakCNLS):
 
     def __disposability_rule(self):
         """Return the proper weak disposability constraint"""
-        if self.rts == RTS_VRS:
-
-            def disposability_rule(model, i, h):
-                if i == h:
-                    return Constraint.Skip
-                return model.alpha[i] + sum(model.beta[i, j] * self.x[h][j] for j in model.J) >= 0
-
-            return disposability_rule
-        elif self.rts == RTS_CRS:
-
-            def disposability_rule(model, i, h):
-                if i == h:
-                    return Constraint.Skip
-                return sum(model.beta[i, j] * self.x[h][j] for j in model.J) >= 0
-
-            return disposability_rule
-        raise ValueError("Undefined model parameters.")
-
-
+        def disposability_rule(model, i, h):
+            if i == h:
+                return Constraint.Skip
+            return model.alpha[i] + sum( self.x[h][j] for j in model.J) >= 0
+        
+        return disposability_rule
+        
 
 
     def display_gamma(self):
-        """Display delta value"""
+        """Display beta value"""
         tools.assert_optimized(self.optimization_status)
         tools.assert_desirable_output(self.y)
         self.__model__.gamma.display()
 
+
+
+
+
+
+    def get_gamma(self):
+        """Return beta value by array"""
+        tools.assert_optimized(self.optimization_status)
+        gamma = np.asarray([i + tuple([j]) for i, j in zip(list(self.__model__.gamma),
+                                                          list(self.__model__.gamma[:, :].value))])
+        gamma = pd.DataFrame(gamma, columns=['Name', 'Key', 'Value'])
+        gamma = gamma.pivot(index='Name', columns='Key', values='Value')
+        return gamma.to_numpy()
 
 
 
@@ -244,17 +241,8 @@ class weakCNLSb(weakCNLS.weakCNLS):
             frontier = np.asarray(list(self.__model__.frontier[:].value)) + 1
         elif self.cet == CET_MULT and type(self.z) != type(None):
             frontier = list(np.divide(1, np.exp(
-                self.get_residual() + self.get_lamda() * np.asarray(self.z)[:, 0])* self.b) - 1)
+                self.get_residual() + self.get_lamda() * np.asarray(self.z)[:, 0] ) * self.x ) - 1)
         elif self.cet == CET_ADDI:
-            frontier = -np.asarray(self.b) - self.get_residual()
+            frontier = np.asarray(self.y) - self.get_residual()
         return np.asarray(frontier)
 
-    def get_gamma(self):
-        """Return delta value by array"""
-        tools.assert_optimized(self.optimization_status)
-        tools.assert_desirable_output(self.y)
-        gamma = np.asarray([i + tuple([j]) for i, j in zip(list(self.__model__.gamma),
-                                                           list(self.__model__.gamma[:, :].value))])
-        gamma = pd.DataFrame(gamma, columns=['Name', 'Key', 'Value'])
-        gamma = gamma.pivot(index='Name', columns='Key', values='Value')
-        return gamma.to_numpy()

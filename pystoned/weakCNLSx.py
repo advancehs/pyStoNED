@@ -199,15 +199,26 @@ class weakCNLSx(weakCNLS.weakCNLS):
 
         raise ValueError("Undefined model parameters.")
 
+
     def __disposability_rule(self):
         """Return the proper weak disposability constraint"""
-        def disposability_rule(model, i, h):
-            if i == h:
-                return Constraint.Skip
-            return model.alpha[i] + sum( self.x[h][j] for j in model.J) >= 0
-        
-        return disposability_rule
-        
+        if self.rts == RTS_VRS:
+
+            def disposability_rule(model, i, h):
+                if i == h:
+                    return Constraint.Skip
+                return model.alpha[i] + sum(self.x[h][j] for j in model.J) >= 0
+
+            return disposability_rule
+        elif self.rts == RTS_CRS:
+
+            def disposability_rule(model, i, h):
+                if i == h:
+                    return Constraint.Skip
+                return sum(self.x[h][j] for j in model.J) >= 0
+
+            return disposability_rule
+        raise ValueError("Undefined model parameters.")
 
 
     def display_gamma(self):
