@@ -67,11 +67,11 @@ class weakCNLSG:
                 or self.__convergence_test_weak(self.alpha, self.beta, self.delta) > 0.0001:
             if type(self.z) != type(None):
                 model2 = weakCNLSZG2.weakCNLSZG2(
-                    self.y, self.x, self.b, self.z,self.cutactive, self.active,self.activeweak, \
+                    self.y, self.x, self.b, self.z,self.cutactive, self.active,self.activeweak,
                         self.cet, self.fun, self.rts)
             else:
                 model2 = weakCNLSG2.weakCNLSG2(
-                    self.y, self.x, self.b, self.cutactive, self.active,self.activeweak, \
+                    self.y, self.x, self.b, self.cutactive, self.active,self.activeweak,
                         self.cet, self.fun, self.rts)
             model2.optimize(email, solver)
             self.alpha = model2.get_alpha()

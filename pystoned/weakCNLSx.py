@@ -163,7 +163,7 @@ class weakCNLSx(weakCNLS.weakCNLS):
 
         raise ValueError("Undefined model parameters.")
 
-    def __afriat_rule(self):  ### todo 改变 afriat rule
+    def __afriat_rule(self):
         """Return the proper afriat inequality constraint"""
         if self.fun == FUN_PROD:
             __operator = NumericValue.__le__
@@ -222,7 +222,7 @@ class weakCNLSx(weakCNLS.weakCNLS):
 
 
     def display_gamma(self):
-        """Display beta value"""
+        """Display gamma value"""
         tools.assert_optimized(self.optimization_status)
         tools.assert_desirable_output(self.y)
         self.__model__.gamma.display()
@@ -233,7 +233,7 @@ class weakCNLSx(weakCNLS.weakCNLS):
 
 
     def get_gamma(self):
-        """Return beta value by array"""
+        """Return gamma value by array"""
         tools.assert_optimized(self.optimization_status)
         gamma = np.asarray([i + tuple([j]) for i, j in zip(list(self.__model__.gamma),
                                                           list(self.__model__.gamma[:, :].value))])

@@ -275,7 +275,7 @@ class weakCNLSbG(weakCNLSG.weakCNLSG):
     def display_gamma(self):
         """Display gamma value"""
         tools.assert_optimized(self.optimization_status)
-        tools.assert_undesirable_output(self.b)
+        tools.assert_desirable_output(self.y)
         self.__model__.gamma.display()
 
     def get_status(self):
@@ -326,7 +326,7 @@ class weakCNLSbG(weakCNLSG.weakCNLSG):
     def get_gamma(self):
         """Return gamma value by array"""
         tools.assert_optimized(self.optimization_status)
-        tools.assert_undesirable_output(self.b)
+        tools.assert_desirable_output(self.y)
         gamma = np.asarray([i + tuple([j]) for i, j in zip(list(self.__model__.gamma),
                                                            list(self.__model__.gamma[:, :].value))])
         gamma = pd.DataFrame(gamma, columns=['Name', 'Key', 'Value'])
