@@ -186,7 +186,7 @@ class weakCNLSZG2:
                                    + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
                     model.alpha[self.__model__.I.nextw(i)] \
                            + sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j]for j in model.J) \
-                        + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L))
+                        + sum(model.delta[self.__model__.I.nextw(i), l] * self.b[i][l] for l in model.L))
 
             return afriat_rule
 
@@ -196,7 +196,7 @@ class weakCNLSZG2:
                     sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
                     + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
                     sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j] for j in model.J) \
-                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L))
+                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.b[i][l] for l in model.L))
 
             return afriat_rule
 
@@ -206,16 +206,16 @@ class weakCNLSZG2:
     def __disposability_rule(self):
         """Return the proper weak disposability constraint"""
         if self.rts == RTS_VRS:
-            def disposability_rule(model, i, h):
+            def disposability_rule(model, i):
                 return model.alpha[self.__model__.I.nextw(i)] \
                     + sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j] for j in model.J) \
-                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L) >= 0
+                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.b[i][l] for l in model.L) >= 0
             return disposability_rule
 
         elif self.rts == RTS_CRS:
             def disposability_rule(model, i):
                 return sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j] for j in model.J) \
-                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L) >= 0
+                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.b[i][l] for l in model.L) >= 0
             return disposability_rule
         raise ValueError("Undefined model parameters.")
 
@@ -301,26 +301,26 @@ class weakCNLSZG2:
 
         if self.rts == RTS_VRS:
 
-            def sweet_rule2(model, i, h):
-                if self.active[i][h]:
+            def sweet_rule_weak2(model, i, h):
+                if self.activeweak[i][h]:
                     if i == h:
                         return Constraint.Skip
                     return model.alpha[i] + sum(model.beta[i, j] * self.x[h][j] for j in model.J) >= 0
 
                 return Constraint.Skip
 
-            return sweet_rule2
+            return sweet_rule_weak2
         elif self.rts == RTS_CRS:
 
-            def sweet_rule2(model, i, h):
-                if self.active[i][h]:
+            def sweet_rule_weak2(model, i, h):
+                if self.activeweak[i][h]:
                     if i == h:
                         return Constraint.Skip
                     return  sum(model.beta[i, j] * self.x[h][j] for j in model.J) >= 0
 
                 return Constraint.Skip
 
-            return sweet_rule2
+            return sweet_rule_weak2
 
         raise ValueError("Undefined model parameters.")
 

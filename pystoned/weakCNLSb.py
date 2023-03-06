@@ -11,7 +11,7 @@ from . import weakCNLS
 
 class weakCNLSb(weakCNLS.weakCNLS):
     """Convex Nonparametric Least Square with weak disposability (weakCNLSb)
-        lnb=ln(\gamma y -\beta x -\alpha - \epsilon(\epsilon<0))
+        lnb=ln(\gamma y -\beta x -\alpha) - \epsilon(\epsilon<0)
     """
 
     def __init__(self, y, x, b, z=None, cet=CET_ADDI, fun=FUN_PROD, rts=RTS_VRS):
@@ -46,7 +46,7 @@ class weakCNLSb(weakCNLS.weakCNLS):
         # Initialize the sets
         self.__model__.I = Set(initialize=range(len(self.b))) #i行
         self.__model__.J = Set(initialize=range(len(self.x[0]))) #j个x
-        self.__model__.L = Set(initialize=range(len(self.y[0]))) ## l个y
+        self.__model__.L = Set(initialize=range(len(self.y[0]))) # l个y
 
         # Initialize the variables
         self.__model__.alpha = Var(self.__model__.I, doc='alpha')
@@ -160,7 +160,7 @@ class weakCNLSb(weakCNLS.weakCNLS):
             elif self.rts == RTS_CRS:
 
                 def log_rule(model, i):
-                    return model.frontier[i] == + sum(
+                    return model.frontier[i] == sum(
                         model.beta[i, j] * self.x[i][j] for j in model.J) \
                             - sum(model.gamma[i, l] * self.y[i][l] for l in model.L) - 1
 

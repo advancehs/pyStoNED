@@ -11,7 +11,7 @@ class weakCNLSG1:
     """initial Group-VC-added weakCNLSZ (weakCNLS+G) model
     """
 
-    def __init__(self, y, x, b, z, cutactive, cet=CET_ADDI, fun=FUN_PROD, rts=RTS_VRS):
+    def __init__(self, y, x, b,  cutactive, cet=CET_ADDI, fun=FUN_PROD, rts=RTS_VRS):
         """CNLSZ+G model
 
         Args:
@@ -169,7 +169,7 @@ class weakCNLSG1:
                                    + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
                     model.alpha[self.__model__.I.nextw(i)] \
                            + sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j]for j in model.J) \
-                        + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L))
+                        + sum(model.delta[self.__model__.I.nextw(i), l] * self.b[i][l] for l in model.L))
 
             return afriat_rule
 
@@ -179,7 +179,7 @@ class weakCNLSG1:
                     sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
                     + sum(model.delta[i, l] * self.b[i][l] for l in model.L),
                     sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j] for j in model.J) \
-                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L))
+                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.b[i][l] for l in model.L))
 
             return afriat_rule
 
@@ -189,16 +189,16 @@ class weakCNLSG1:
     def __disposability_rule(self):
         """Return the proper weak disposability constraint"""
         if self.rts == RTS_VRS:
-            def disposability_rule(model, i, h):
+            def disposability_rule(model, i):
                 return model.alpha[self.__model__.I.nextw(i)] \
                     + sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j] for j in model.J) \
-                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L) >= 0
+                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.b[i][l] for l in model.L) >= 0
             return disposability_rule
 
         elif self.rts == RTS_CRS:
             def disposability_rule(model, i):
                 return sum(model.beta[self.__model__.I.nextw(i), j] * self.x[i][j] for j in model.J) \
-                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.x[i][l] for l in model.L) >= 0
+                    + sum(model.delta[self.__model__.I.nextw(i), l] * self.b[i][l] for l in model.L) >= 0
             return disposability_rule
         raise ValueError("Undefined model parameters.")
 

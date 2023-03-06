@@ -1,7 +1,4 @@
 # import dependencies
-from pyomo.environ import ConcreteModel, Set, Var, Objective, minimize, Constraint, log
-from pyomo.core.expr.numvalue import NumericValue
-
 import numpy as np
 import pandas as pd
 from .utils import weakCNLSG1, weakCNLSG2, weakCNLSZG1, weakCNLSZG2, sweet, tools, interpolation
@@ -11,17 +8,17 @@ import time
 
 
 
-class weakCNLS:
+class weakCNLSG:
     """Convex Nonparametric Least Square with weak disposability (weakCNLS) and Genetic algorithm
     """
     def __init__(self, y, x, b, z=None, cet=CET_ADDI, fun=FUN_PROD, rts=RTS_VRS):
         """weakCNLSG model
 
         Args:
-            y (float): output variable.
-            x (float): input variables.
-            b (float): undersiable variables.
-            z (float, optional): Contextual variable(s). Defaults to None.
+            y (ndarray): output variable.
+            x (ndarray): input variables.
+            b (ndarray): undersiable variables.
+            z (ndarray, optional): Contextual variable(s). Defaults to None.
             cet (String, optional): CET_ADDI (additive composite error term) or CET_MULT (multiplicative composite error term). Defaults to CET_ADDI.
             fun (String, optional): FUN_PROD (production frontier) or FUN_COST (cost frontier). Defaults to FUN_PROD.
             rts (String, optional): RTS_VRS (variable returns to scale) or RTS_CRS (constant returns to scale). Defaults to RTS_VRS.
@@ -70,10 +67,12 @@ class weakCNLS:
                 or self.__convergence_test_weak(self.alpha, self.beta, self.delta) > 0.0001:
             if type(self.z) != type(None):
                 model2 = weakCNLSZG2.weakCNLSZG2(
-                    self.y, self.x, self.b, self.z,self.cutactive, self.active,self.activeweak, self.cet, self.fun, self.rts)
+                    self.y, self.x, self.b, self.z,self.cutactive, self.active,self.activeweak, \
+                        self.cet, self.fun, self.rts)
             else:
                 model2 = weakCNLSG2.weakCNLSG2(
-                    self.y, self.x, self.b, self.cutactive, self.active,self.activeweak, self.cet, self.fun, self.rts)
+                    self.y, self.x, self.b, self.cutactive, self.active,self.activeweak, \
+                        self.cet, self.fun, self.rts)
             model2.optimize(email, solver)
             self.alpha = model2.get_alpha()
             self.beta = model2.get_beta()
@@ -109,7 +108,7 @@ class weakCNLS:
                         self.active[i, j] = 1
                 if activetmp > activetmp1:
                     activetmp1 = activetmp
-            return activetmp
+
 
         elif self.rts == RTS_VRS and self.fun == FUN_COST:
         # go into the loop
@@ -130,7 +129,7 @@ class weakCNLS:
                         self.active[i, j] = 1
                 if activetmp > activetmp1:
                     activetmp1 = activetmp
-            return activetmp
+
 
         elif self.rts == RTS_CRS and self.fun == FUN_PROD:
         # go into the loop
@@ -150,7 +149,7 @@ class weakCNLS:
                         self.active[i, j] = 1
                 if activetmp > activetmp1:
                     activetmp1 = activetmp
-            return activetmp
+
         elif self.rts == RTS_CRS and self.fun == FUN_COST:
         # go into the loop
             for i in range(len(x)):
@@ -168,7 +167,7 @@ class weakCNLS:
                         self.active[i, j] = 1
                 if activetmp > activetmp1:
                     activetmp1 = activetmp
-            return activetmp
+        return activetmp
 
 
 
