@@ -7,11 +7,13 @@ from pystoned2 import dataset as dataset
 data = dataset.load_GHG_abatement_cost()
 
 # define and solve the CNLS-DDF model
-model = weakCNLS.weakCNLS(y=data.y, x=data.x, b=data.b, cet=CET_ADDI, fun=FUN_PROD)
-model.optimize( solver="mosek")
 
-# display the estimates (alpha, beta, gamma, delta, and residual)
-model.display_alpha()
-model.display_beta()
-model.display_delta()
-model.display_residual()
+def test_weakCNLS():
+    model = weakCNLS.weakCNLS(y=data.y, x=data.x, b=data.b, cet=CET_ADDI, fun=FUN_PROD)
+    model.optimize( solver="mosek")
+
+    # display the estimates (alpha, beta, gamma, delta, and residual)
+    model.display_alpha()
+    model.display_beta()
+    model.display_delta()
+    model.display_residual()
