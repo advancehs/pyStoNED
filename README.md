@@ -14,4 +14,6 @@ The [`pyStoNED2`](https://pypi.org/project/pystoned2/) package is now avaiable o
 
     pip install -U git+https://github.com/advancehs/pyStoNED2
 
-
+#### Contribute
+- 在tests添加相应的单元测试
+- 使用python -m pytest来运行所有单元测试，确保所有单测都是通过的
