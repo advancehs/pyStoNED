@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 from . import CNLS
-from .constant import CET_ADDI, FUN_COST, FUN_PROD, RTS_VRS, OPT_DEFAULT, OPT_LOCAL
+from .constant import CET_ADDI, FUN_COST, FUN_PROD, RTS_VRS,RTS_CRS, OPT_DEFAULT, OPT_LOCAL
 from .utils import tools
 
 
@@ -13,22 +13,25 @@ class CNLSDDF(CNLS.CNLS):
     """Convex Nonparametric Least Square with directional distance function
     """
 
-    def __init__(self, y, x, b=None, gy=[1], gx=[1], gb=None, fun=FUN_PROD):
+    def __init__(self, y, x, b=None, z=None, gy=[1], gx=[1], gb=None, fun=FUN_PROD, rts=RTS_VRS):
         """CNLS DDF model
 
         Args:
             y (float): output variable.
             x (float): input variables.
             b (float), optional): undesirable output variables. Defaults to None.
+            z (float, optional): Contextual variable(s). Defaults to None.
             gy (list, optional): output directional vector. Defaults to [1].
             gx (list, optional): input directional vector. Defaults to [1].
             gb (list, optional): undesirable output directional vector. Defaults to None.
             fun (String, optional): FUN_PROD (production frontier) or FUN_COST (cost frontier). Defaults to FUN_PROD.
+            rts (String, optional): RTS_VRS (variable returns to scale) or RTS_CRS (constant returns to scale). Defaults to RTS_VRS.
         """
         # TODO(error/warning handling): Check the configuration of the model exist
-        self.y, self.x, self.b, self.gy, self.gx, self.gb = tools.assert_valid_direciontal_data(y,x,b,gy,gx,gb)
+        self.y, self.x, self.b, self.z,self.gy, self.gx, self.gb = \
+            tools.assert_valid_direciontal_data_with_z(y,x,b,z,gy,gx,gb)
         self.fun = fun
-        self.rts = RTS_VRS
+        self.rts = rts
     
         self.__model__ = ConcreteModel()
 
@@ -50,8 +53,14 @@ class CNLSDDF(CNLS.CNLS):
             self.__model__.delta = Var(
                 self.__model__.I, self.__model__.L, bounds=(0.0, None), doc='delta')
 
+        if type(self.z) != type(None):
+            # Initialize the set of z
+            self.__model__.M = Set(initialize=range(len(self.z[0])))
+            # Initialize the variables for z variable
+            self.__model__.lamda = Var(self.__model__.M, doc='z coefficient')
+
         # Setup the objective function and constraints
-        self.__model__.objective = Objective(rule=self._CNLS__objective_rule(),
+        self.__model__.objective = Objective(rule=self.__objective_rule(),
                                              sense=minimize,
                                              doc='objective function')
         self.__model__.regression_rule = Constraint(self.__model__.I,
@@ -82,23 +91,85 @@ class CNLSDDF(CNLS.CNLS):
 
     def __regression_rule(self):
         """Return the proper regression constraint"""
-        if type(self.b) == type(None):
-            def regression_rule(model, i):
-                return sum(model.gamma[i, k] * self.y[i][k] for k in model.K) \
-                    == model.alpha[i] \
-                    + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                    - model.epsilon[i]
+        if self.rts == RTS_VRS:
+            if type(self.b) == type(None):
+                if type(self.z) != type(None):
+                    def regression_rule(model, i):
+                        return sum(model.gamma[i, k] * self.y[i][k] for k in model.K) \
+                            == model.alpha[i] \
+                            + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                            - sum(model.lamda[m] * self.z[i][m] for m in model.M) \
+                            - model.epsilon[i]
 
-            return regression_rule
+                    return regression_rule
+                elif type(self.z) == type(None):
+                    def regression_rule(model, i):
+                        return sum(model.gamma[i, k] * self.y[i][k] for k in model.K) \
+                            == model.alpha[i] \
+                            + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                            - model.epsilon[i]
 
-        def regression_rule(model, i):
-            return sum(model.gamma[i, k] * self.y[i][k] for k in model.K) \
-                == model.alpha[i] \
-                + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
-                + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
-                - model.epsilon[i]
+                    return regression_rule
+            elif type(self.b) != type(None):
+                if type(self.z) != type(None):
+                    def regression_rule(model, i):
+                        return sum(model.gamma[i, k] * self.y[i][k] for k in model.K) \
+                            == model.alpha[i] \
+                            + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
+                            - sum(model.lamda[m] * self.z[i][m] for m in model.M) \
+                            - model.epsilon[i]
 
-        return regression_rule
+                    return regression_rule
+
+                elif type(self.z) == type(None):
+                    def regression_rule(model, i):
+                        return sum(model.gamma[i, k] * self.y[i][k] for k in model.K) \
+                            == model.alpha[i] \
+                            + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
+                            - model.epsilon[i]
+
+                    return regression_rule
+
+        elif self.rts == RTS_CRS:
+            if type(self.b) == type(None):
+                if type(self.z) != type(None):
+                    def regression_rule(model, i):
+                        return sum(model.gamma[i, k] * self.y[i][k] for k in model.K) \
+                            == sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                            - sum(model.lamda[m] * self.z[i][m] for m in model.M) \
+                            - model.epsilon[i]
+
+                    return regression_rule
+                elif type(self.z) == type(None):
+                    def regression_rule(model, i):
+                        return sum(model.gamma[i, k] * self.y[i][k] for k in model.K) \
+                            == sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                            - model.epsilon[i]
+
+                    return regression_rule
+            elif type(self.b) != type(None):
+                if type(self.z) != type(None):
+                    def regression_rule(model, i):
+                        return sum(model.gamma[i, k] * self.y[i][k] for k in model.K) \
+                            == sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
+                            - sum(model.lamda[m] * self.z[i][m] for m in model.M) \
+                            - model.epsilon[i]
+
+                    return regression_rule
+
+                elif type(self.z) == type(None):
+                    def regression_rule(model, i):
+                        return sum(model.gamma[i, k] * self.y[i][k] for k in model.K) \
+                            == sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                            + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
+                            - model.epsilon[i]
+
+                    return regression_rule
+
+        raise ValueError("Undefined model parameters.")
 
     def __translation_property(self):
         """Return the proper translation property"""
@@ -109,12 +180,13 @@ class CNLSDDF(CNLS.CNLS):
 
             return translation_rule
 
-        def translation_rule(model, i):
-            return sum(model.beta[i, j] * self.gx[j] for j in model.J) \
-                + sum(model.gamma[i, k] * self.gy[k] for k in model.K) \
-                + sum(model.delta[i, l] * self.gb[l] for l in model.L) == 1
+        elif type(self.b) != type(None):
+            def translation_rule(model, i):
+                return sum(model.beta[i, j] * self.gx[j] for j in model.J) \
+                    + sum(model.gamma[i, k] * self.gy[k] for k in model.K) \
+                    + sum(model.delta[i, l] * self.gb[l] for l in model.L) == 1
 
-        return translation_rule
+            return translation_rule
 
     def __afriat_rule(self):
         """Return the proper afriat inequality constraint"""
@@ -123,34 +195,63 @@ class CNLSDDF(CNLS.CNLS):
         elif self.fun == FUN_COST:
             __operator = NumericValue.__ge__
 
-        if type(self.b) == type(None):
-            def afriat_rule(model, i, h):
-                if i == h:
-                    return Constraint.Skip
-                return __operator(model.alpha[i]
-                                  + sum(model.beta[i, j] * self.x[i][j]
-                                        for j in model.J)
-                                  - sum(model.gamma[i, k] * self.y[i][k]
-                                        for k in model.K),
-                                  model.alpha[h]
-                                  + sum(model.beta[h, j] * self.x[i][j]
-                                        for j in model.J)
-                                  - sum(model.gamma[h, k] * self.y[i][k] for k in model.K))
+        if self.rts == RTS_VRS:
+            if type(self.b) == type(None):
+                def afriat_rule(model, i, h):
+                    if i == h:
+                        return Constraint.Skip
+                    return __operator(model.alpha[i]
+                                      + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                                      - sum(model.gamma[i, k] * self.y[i][k] for k in model.K),
+                                      model.alpha[h]
+                                      + sum(model.beta[h, j] * self.x[i][j] for j in model.J) \
+                                      - sum(model.gamma[h, k] * self.y[i][k] for k in model.K))
 
-            return afriat_rule
+                return afriat_rule
 
-        def afriat_rule(model, i, h):
-            if i == h:
-                return Constraint.Skip
-            return __operator(model.epsilon[i],
-                              model.alpha[h]
-                              + sum(model.beta[h, j] * self.x[i][j]
-                                    for j in model.J)
-                              + sum(model.delta[h, l] * self.b[i][l]
-                                    for l in model.L)
-                              - sum(model.gamma[h, k] * self.y[i][k] for k in model.K))
 
-        return afriat_rule
+            elif type(self.b) != type(None):
+
+                def afriat_rule(model, i, h):
+                    if i == h:
+                        return Constraint.Skip
+                    return __operator(model.alpha[i] \
+                                      + sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                                      + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
+                                      - sum(model.gamma[i, k] * self.y[i][k] for k in model.K),
+                                      model.alpha[h]
+                                      + sum(model.beta[h, j] * self.x[i][j] for j in model.J) \
+                                      + sum(model.delta[h, l] * self.b[i][l] for l in model.L) \
+                                      - sum(model.gamma[h, k] * self.y[i][k] for k in model.K))
+
+                return afriat_rule
+
+        elif self.rts == RTS_CRS:
+            if type(self.b) == type(None):
+                def afriat_rule(model, i, h):
+                    if i == h:
+                        return Constraint.Skip
+                    return __operator( sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                                      - sum(model.gamma[i, k] * self.y[i][k] for k in model.K),
+                                       sum(model.beta[h, j] * self.x[i][j] for j in model.J) \
+                                      - sum(model.gamma[h, k] * self.y[i][k] for k in model.K))
+
+                return afriat_rule
+
+            elif type(self.b) != type(None):
+                def afriat_rule(model, i, h):
+                    if i == h:
+                        return Constraint.Skip
+                    return __operator( sum(model.beta[i, j] * self.x[i][j] for j in model.J) \
+                                      + sum(model.delta[i, l] * self.b[i][l] for l in model.L) \
+                                      - sum(model.gamma[i, k] * self.y[i][k] for k in model.K),
+                                        sum(model.beta[h, j] * self.x[i][j] for j in model.J) \
+                                      + sum(model.delta[h, l] * self.b[i][l] for l in model.L) \
+                                      - sum(model.gamma[h, k] * self.y[i][k] for k in model.K))
+
+                return afriat_rule
+
+        raise ValueError("Undefined model parameters.")
 
     def display_gamma(self):
         """Display gamma value"""

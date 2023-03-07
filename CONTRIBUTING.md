@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your contribution to the [pyStoNED](https://github.com/ds2010/StoNED-Python)!
+Thanks for your contribution to the [pyStoNED2](https://github.com/advancehs/pyStoNED2)!
 Please first discuss the change the developers of this repository by creating an issue before making a change.
 
 ## Style
@@ -9,12 +9,12 @@ For the consistency of the source code, we follow [PEP8 python style guide](http
 
 Using `yapf -i` to format the codes:
 ```bash
-$ yapf -i pystoned/example.py
+$ yapf -i pystoned2/example.py
 ```
 
 Using `pylint` to check the other requirements:
 ```bash
-$ pylint pystoned/example.py
+$ pylint pystoned2/example.py
 ```
 
 ## Commit message

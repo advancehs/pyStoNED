@@ -1,7 +1,7 @@
 # import dependencies
 import numpy as np
 import pandas as pd
-from .utils import CNLSDDFG1,CNLSDDFG2, CNLSDDFZG1, CNLSDDFZG2, sweet, tools
+from .utils import  weakCNLSDDFG1,weakCNLSDDFG2, weakCNLSDDFZG1, weakCNLSDDFZG2, sweet, tools
 from .constant import CET_ADDI, FUN_PROD, FUN_COST, OPT_DEFAULT, RTS_CRS, RTS_VRS,OPT_LOCAL
 import time
 
@@ -9,16 +9,16 @@ import time
 
 
 
-class CNLSDDFG:
-    """Convex Nonparametric Least Square (CNLSDDF) and Genetic algorithm
+class weakCNLSDDFG:
+    """Convex Nonparametric Least Square with weak disposability (weakCNLSDDF) and Genetic algorithm
     """
     def __init__(self, y, x, b, z=None, gy=[1], gx=[1], gb=[1], fun=FUN_PROD, rts=RTS_VRS):
-        """CNLSDDFG model
+        """weakCNLSG model
 
         Args:
             y (ndarray): output variable.
             x (ndarray): input variables.
-            b (ndarray, optional): undersiable variables.
+            b (ndarray): undersiable variables.
             z (ndarray, optional): Contextual variable(s). Defaults to None.
             gy (list, optional): output directional vector. Defaults to [1].
             gx (list, optional): input directional vector. Defaults to [1].
@@ -56,10 +56,10 @@ class CNLSDDFG:
         # TODO(error/warning handling): Check problem status after optimization
         self.t0 = time.time()
         if type(self.z) != type(None):
-            model1 = CNLSDDFZG1.CNLSDDFZG1(
+            model1 = weakCNLSDDFZG1.weakCNLSDDFZG1(
                 self.y, self.x, self.b, self.z, self.cutactive, self.gy, self.gx, self.gb, self.fun, self.rts)
         else:
-            model1 = CNLSDDFG1.CNLSDDFG1(
+            model1 = weakCNLSDDFG1.weakCNLSDDFG1(
                 self.y, self.x, self.b, self.cutactive, self.gy, self.gx, self.gb, self.fun, self.rts)
         model1.optimize(email, solver)
         self.alpha = model1.get_alpha()
@@ -69,14 +69,15 @@ class CNLSDDFG:
         self.__model__ = model1.__model__
 
         self.count = 0
-        while self.__convergence_test(self.alpha, self.beta, self.gamma, self.delta) > 0.0001 :
+        while self.__convergence_test(self.alpha, self.beta, self.gamma, self.delta) > 0.0001 \
+                or self.__convergence_test_weak(self.alpha, self.beta, self.gamma, self.delta) > 0.0001:
             if type(self.z) != type(None):
-                model2 = CNLSDDFZG2.CNLSDDFZG2(
-                    self.y, self.x, self.b, self.z,self.cutactive, self.active,
+                model2 = weakCNLSDDFZG2.weakCNLSDDFZG2(
+                    self.y, self.x, self.b, self.z,self.cutactive, self.active,self.activeweak,
                     self.gy, self.gx, self.gb,  self.fun, self.rts)
             else:
-                model2 = CNLSDDFG2.CNLSDDFG2(
-                    self.y, self.x, self.b, self.cutactive, self.active,
+                model2 = weakCNLSDDFG2.weakCNLSDDFG2(
+                    self.y, self.x, self.b, self.cutactive, self.active,self.activeweak,
                     self.gy, self.gx, self.gb, self.fun, self.rts)
             model2.optimize(email, solver)
             self.alpha = model2.get_alpha()
@@ -183,6 +184,83 @@ class CNLSDDFG:
         return activetmp
 
 
+
+    def __convergence_test_weak(self, alpha, beta, gamma,delta):
+        x = np.asarray(self.x)
+        y = np.asarray(self.y)
+        b = np.asarray(self.b)
+        activetmp1 = 0.0
+        if self.rts == RTS_VRS and self.fun == FUN_PROD:
+        # go into the loop
+            for i in range(len(x)):
+                activetmp = 0.0
+                # go into the sub-loop and find the violated concavity constraints
+                for j in range(len(x)):
+                    self.activeweak2[i, j] = - alpha[j] - np.sum(beta[j, :] * x[i, :])
+
+                    if self.activeweak2[i, j] > activetmp:
+                        activetmp = self.activeweak2[i, j]
+
+            # find the maximal violated constraint in sub-loop and added into the active matrix
+                for j in range(len(x)):
+                    if self.activeweak2[i, j] >= activetmp and activetmp > 0:
+                        self.activeweak[i, j] = 1
+                if activetmp > activetmp1:
+                    activetmp1 = activetmp
+
+        elif self.rts == RTS_VRS and self.fun == FUN_COST:
+        # go into the loop
+            for i in range(len(x)):
+                activetmp = 0.0
+                # go into the sub-loop and find the violated concavity constraints
+                for j in range(len(x)):
+                    self.activeweak2[i, j] = alpha[j] + np.sum(beta[j, :] * x[i, :])
+
+                    if self.activeweak2[i, j] > activetmp:
+                        activetmp = self.activeweak2[i, j]
+
+            # find the maximal violated constraint in sub-loop and added into the active matrix
+                for j in range(len(x)):
+                    if self.activeweak2[i, j] >= activetmp and activetmp > 0:
+                        self.activeweak[i, j] = 1
+                if activetmp > activetmp1:
+                    activetmp1 = activetmp
+
+        elif self.rts == RTS_CRS and self.fun == FUN_PROD:
+        # go into the loop
+            for i in range(len(x)):
+                activetmp = 0.0
+                # go into the sub-loop and find the violated concavity constraints
+                for j in range(len(x)):
+                    self.activeweak2[i, j] = - np.sum(beta[j, :] * x[i, :])
+
+                    if self.activeweak2[i, j] > activetmp:
+                        activetmp = self.activeweak2[i, j]
+
+            # find the maximal violated constraint in sub-loop and added into the active matrix
+                for j in range(len(x)):
+                    if self.activeweak2[i, j] >= activetmp and activetmp > 0:
+                        self.activeweak[i, j] = 1
+                if activetmp > activetmp1:
+                    activetmp1 = activetmp
+
+        elif self.rts == RTS_CRS and self.fun == FUN_COST:
+        # go into the loop
+            for i in range(len(x)):
+                activetmp = 0.0
+                # go into the sub-loop and find the violated concavity constraints
+                for j in range(len(x)):
+                    self.activeweak2[i, j] = np.sum(beta[j, :] * x[i, :])
+                    if self.activeweak2[i, j] > activetmp:
+                        activetmp = self.activeweak2[i, j]
+
+            # find the maximal violated constraint in sub-loop and added into the active matrix
+                for j in range(len(x)):
+                    if self.activeweak2[i, j] >= activetmp and activetmp > 0:
+                        self.activeweak[i, j] = 1
+                if activetmp > activetmp1:
+                    activetmp1 = activetmp
+        return activetmp
 
     def display_status(self):
         """Display the status of problem"""

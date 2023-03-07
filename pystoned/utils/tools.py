@@ -235,6 +235,51 @@ def assert_solver_available_locally(solver):
         raise ValueError("Solver {} is not available locally.".format(solver))
 
 
+def assert_valid_direciontal_data_with_z(y, x, b=None,z=None, gy=[1], gx=[1], gb=None):
+    y = trans_list(y)
+    x = trans_list(x)
+
+    y = to_2d_list(y)
+    x = to_2d_list(x)
+
+    gy = to_1d_list(gy)
+    gx = to_1d_list(gx)
+
+    y_shape = np.asarray(y).shape
+    x_shape = np.asarray(x).shape
+
+    if y_shape[0] != x_shape[0]:
+        raise ValueError(
+            "Number of DMUs must be the same in x and y.")
+
+    if y_shape[1] != len(gy):
+        raise ValueError("Number of outputs must be the same in y and gy.")
+
+    if x_shape[1] != len(gx):
+        raise ValueError("Number of inputs must be the same in x and gx.")
+
+    if type(b) != type(None):
+        b = trans_list(b)
+        b = to_2d_list(b)
+        gb = to_1d_list(gb)
+        b_shape = np.asarray(b).shape
+        if b_shape[0] != b_shape[0]:
+            raise ValueError(
+                "Number of DMUs must be the same in y and b.")
+        if b_shape[1] != len(gb):
+            raise ValueError(
+                "Number of undesirable outputs must be the same in b and gb.")
+
+    if type(z) != type(None):
+        z = trans_list(z)
+        z = to_2d_list(z)
+        z_shape = np.asarray(z).shape
+        if y_shape[0] != z_shape[0]:
+            raise ValueError(
+                "Number of DMUs must be the same in y and z.")
+    return y, x, b,z, gy, gx, gb
+
+
 def assert_valid_wp_data(y, x, b, z=None):
     y = trans_list(y)
     x = trans_list(x)

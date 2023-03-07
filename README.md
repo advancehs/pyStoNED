@@ -1,29 +1,17 @@
-# [pyStoNED](https://pystoned.readthedocs.io/en/latest/) [![Documentation Status](https://readthedocs.org/projects/pystoned/badge/?version=latest)](https://pystoned.readthedocs.io/en/latest/?badge=latest)
+# [pyStoNED2]
 
-pyStoNED is a Python package that provides functions for estimating multivariate convex regression, convex quantile regression, convex expectile regression, isotonic regression, stochastic nonparametric envelopment of data, and related methods. It also facilitates efficiency measurement using the conventional data envelopement analysis (DEA) and free disposable hull (FDH) approaches. The pyStoNED package allows practitioners to estimate these models in an open access environment under a GPL-3.0 License.
+pyStoNED2 is a Python package that provides functions for estimating multivariate convex regression, convex quantile regression, convex expectile regression, isotonic regression, stochastic nonparametric envelopment of data, and related methods. It also facilitates efficiency measurement using the conventional data envelopement analysis (DEA) and free disposable hull (FDH) approaches. The pyStoNED2 package allows practitioners to estimate these models in an open access environment under a GPL-3.0 License.
 
 # Installation
 
-The [`pyStoNED`](https://pypi.org/project/pystoned/) package is now avaiable on PyPI and the latest development version can be installed from the Github repository [`pyStoNED`](https://github.com/ds2010/pyStoNED). Please feel free to download and test it. We welcome any bug reports and feedback.
+The [`pyStoNED2`](https://pypi.org/project/pystoned2/) package is now avaiable on PyPI and the latest development version can be installed from the Github repository [`pyStoNED2`](https://github.com/advancehs/pyStoNED2). Please feel free to download and test it. We welcome any bug reports and feedback.
 
-#### PyPI [![PyPI version](https://img.shields.io/pypi/v/pystoned.svg?maxAge=3600)](https://pypi.org/project/pystoned/)[![PyPI downloads](https://img.shields.io/pypi/dm/pystoned.svg?maxAge=21600)](https://pypistats.org/packages/pystoned)
+#### PyPI 
 
     pip install pystoned
 
 #### GitHub
 
-    pip install -U git+https://github.com/ds2010/pyStoNED
+    pip install -U git+https://github.com/advancehs/pyStoNED2
 
-# Authors
-
- + [Sheng Dai](https://daisheng.io), PhD, Turku School of Economics, University of Turku.
- + [Yu-Hsueh Fang](https://github.com/Fangop), Computer Engineer, Institute of Manufacturing Information and Systems, National Cheng Kung University.
- + [Chia-Yen Lee](http://polab.im.ntu.edu.tw/), Professor, College of Management, National Taiwan University.
- + [Timo Kuosmanen](https://www.researchgate.net/profile/Timo_Kuosmanen), Professor, Turku School of Economics, University of Turku.
-
-# Citation
-
-If you use [pyStoNED](https://pypi.org/project/pystoned/) for published work, we encourage you to cite our following paper and other related [works](https://pystoned.readthedocs.io/en/latest/citing/index.html). We appreciate it.
-
-> Dai S, Fang YH, Lee CY, Kuosmanen T. (2021). pyStoNED: A Python Package for Convex Regression and Frontier Estimation. arXiv preprint arXiv:2109.12962.
 

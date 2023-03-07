@@ -4,18 +4,18 @@ with open('README.md') as readme_file:
     README = readme_file.read()
 
 setup_args = dict(
-    name='pystoned',
-    version='0.6.1',
+    name='pystoned2',
+    version='0.0.1',
     description='A Python Package for Convex Regression and Frontier Estimation',
     long_description_content_type="text/markdown",
     long_description=README,
     license='GPLv3',
     packages=find_packages(),
-    author='Sheng Dai, Yu-Hsueh Fang, Chia-Yen Lee, Timo Kuosmanen',
-    author_email='sheng.dai@utu.fi',
+    author='Shuo Hu',
+    author_email='1019753743@qq.com',
     keywords=['StoNED', 'CNLS', 'CER', 'CQR', 'Z-variables','CNLSG'],
-    url='https://github.com/ds2010/pyStoNED',
-    download_url='https://pypi.org/project/pystoned/',
+    url='https://github.com/advancehs/pyStoNED2',
+    # download_url='https://pypi.org/project/pystoned/',
     include_package_data=True,
     zip_safe=False,
     classifiers=[
